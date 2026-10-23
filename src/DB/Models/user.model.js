@@ -5,14 +5,14 @@ const userSchema = new Schema(
     {
         firstName:{
             type:String,
-            require:[true,"first name is mandatory"],
+            required:[true,"first name is mandatory"],
             minLength:2,
             maxLength:25,
             trim:true,
         },
          lastName:{
             type:String,
-            require:[true,"last name is mandatory"],
+            required:[true,"last name is mandatory"],
             minLength:2,
             maxLength:25,
             trim:true,
@@ -24,7 +24,9 @@ const userSchema = new Schema(
         },
         password:{
           type:String,
-          require:true,  
+          require:function(){
+            return this.provider == providerEnum.System;
+          },  
         },
         DOB:Date,
         age:Number,
@@ -46,7 +48,7 @@ const userSchema = new Schema(
             default:providerEnum.System,
          },
          confirmEmail:String,
-         profilePic:[String],
+         profilePic:String,
         },
         {
         timestamps:true,

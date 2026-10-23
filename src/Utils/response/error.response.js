@@ -48,6 +48,7 @@ export const UnauthorizedException = ({
 
 
 export const globalErrorHandler = (err, req , res , next)=>{
+  console.error("GLOBAL ERROR:", err);
     const status = err.status?? 500;
     const extra = err.extra || undefined;
     return res.status( status).json({message:err.message,stack:err.stack , extra});   
