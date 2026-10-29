@@ -13,6 +13,7 @@ const bootstrap = async (app, express) => {
     successResponse({res, statusCode:200 , message:"Hello from Saraha Application"})
   })
 
+  
   app.use("/api/v1/auth", authRouter);
   app.use("/api/v1/user", userRouter);
   app.use("/api/v1/message", messageRouter);

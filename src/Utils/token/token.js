@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { v4 as uuid } from "uuid";
 import {
   JWT_ADMIN_SECRET_ACCESS,
   JWT_ADMIN_SECRET_REFRESH,
@@ -7,8 +8,9 @@ import {
   JWT_USER_SECRET_ACCESS,
   JWT_USER_SECRET_REFRESH,
 } from "../../../config/config.service.js";
+import TokenModel from "../../DB/Models/token.model.js";
 import UserModel from "../../DB/Models/user.model.js";
-import { findById } from "../../DB/database.repository.js";
+import { findById, findOne } from "../../DB/database.repository.js";
 import { roleEnum, signatureEnum, tokenTypeEnum } from "../enums/user.enum.js";
 import {
   BadRequestException,
@@ -47,18 +49,19 @@ export const getNewLoginCredentials = async (user) => {
     signatureLevel:
       user.role != roleEnum.Admin ? signatureEnum.User : signatureEnum.Admin,
   });
-  console.log(signature);
+
+  const jwtid = uuid();
 
   const accessToken = generateToken({
     payload: { id: user._id },
     secretkey: signature.accessSignature,
-    options: { expiresIn: Number(JWT_EXPIRE_IN_ACCESS) },
+    options: { expiresIn: JWT_EXPIRE_IN_ACCESS, jwtid },
   });
 
   const refreshToken = generateToken({
     payload: { id: user._id },
     secretkey: signature.refreshSignature,
-    options: { expiresIn: JWT_EXPIRE_IN_REFRESH },
+    options: { expiresIn: JWT_EXPIRE_IN_REFRESH, jwtid },
   });
   return {
     accessToken,
@@ -70,6 +73,11 @@ export const decodedToken = async ({
   authorization,
   tokenType = tokenTypeEnum.Access,
 }) => {
+  if (!authorization) {
+    throw BadRequestException({
+      message: "Authorization header is required",
+    });
+  }
   const [Bearer, token] = authorization.split(" ");
   if (!Bearer || !token) {
     throw BadRequestException({ message: "Invalid token" });
@@ -88,10 +96,23 @@ export const decodedToken = async ({
         : signature.refreshSignature,
   });
 
+  const isRevoked = await findOne({
+    model: TokenModel,
+    filter: { jti: decoded.jti },
+  });
+  if (isRevoked) {
+    throw BadRequestException({
+      message: "Token is revoked, please login again",
+    });
+  }
+
   //payload
   const user = await findById({ model: UserModel, id: decoded.id });
   if (!user) {
     throw NotFoundException({ message: "Not Registered Account" });
+  }
+  if (user.changeCredentialTime?.getTime() || 0 > decoded.iat * 1000) {
+    throw BadRequestException({ message: "Login again" });
   }
   return {
     user,
